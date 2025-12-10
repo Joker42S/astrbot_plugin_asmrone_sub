@@ -1,0 +1,38 @@
+{
+  "max_page": {
+      "description": "最大查询页数",
+      "type": "int",
+      "hint": "每次检查更新时，最多查询多少页",
+      "default": 2
+  },
+  "check_interval": {
+      "description": "更新检查间隔",
+      "type": "int",
+      "hint": "隔多少时间检查一次更新（单位：分钟）",
+      "default": 360
+  },
+  "api_url": {
+      "description": "ASMR.one的api地址",
+      "type": "string",
+      "hint": "如无必要，请勿更改，如果默认地址无法使用，优先通过配置代理解决",
+      "default": "https://api.asmr-200.com/"
+  },
+  "base_url": {
+      "description": "作品链接的url前缀",
+      "type": "string",
+      "hint": "推送的消息里使用的url链接前缀",
+      "default": "https://asmr-200.com/"
+  },
+  "search_tags":{
+    "description": "查询更新时使用的搜索条件",
+      "type": "list",
+      "hint": "正向条件：$类型:值$，反向条件：$-类型:值$，可通过asmr.one网站的【高级搜索】功能查看支持的类型和值",
+      "default": []
+  },
+  "proxy": {
+      "description": "代理服务器",
+      "type": "string",
+      "hint": "如需使用代理访问asmr.one网站，请填写代理服务器地址，如无需使用代理，请留空",
+      "default": ""
+  }
+}
