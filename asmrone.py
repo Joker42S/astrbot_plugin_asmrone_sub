@@ -130,7 +130,7 @@ class AsmroneClient:
 
     async def fetch_latest_articles(self) -> List[Dict]:
         #返回数据格式: [{"title": str, "url": str, "id": int, "cover": str, "desc": str}, ...]
-        logger.info("开始检查琉璃神社更新...")
+        logger.info("开始检查ASMR.one更新...")
         latest_id = self._load_latest_id() or 0
         results = []
         new_id = 0

@@ -28,6 +28,7 @@ class AsmroneSub(Star):
             self.temp_dir.mkdir(parents=True, exist_ok=True)
         self.sub_sources_file : Path = self.base_dir / "sub_sources.json"
         self.search_tags = self.config.get("search_tags", [])
+        self.search_tags = [s.replace('/', '%2F') for s in self.search_tags]
         self.proxy = self.config.get("proxy", "")
         self.asmrone = AsmroneClient(
             base_url=self.base_url,
