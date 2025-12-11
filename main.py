@@ -65,9 +65,10 @@ class AsmroneSub(Star):
             logger.info("无订阅源，无需刷新")
             return
         new_articles : List[Dict] = await self.asmrone.fetch_latest_articles()
-        msg = MessageChain().message(f"ASMR.one更新了{len(new_articles)}个新作品。\n")
-        for source in sources:
-            await self.context.send_message(source, msg)
+        if len(new_articles) > 0:
+            msg = MessageChain().message(f"ASMR.one更新了{len(new_articles)}个新作品。\n")
+            for source in sources:
+                await self.context.send_message(source, msg)
         for article in new_articles:
             title = article.get("title", "无标题")
             url = article.get("url", "")
