@@ -1,4 +1,6 @@
 from typing import List, Dict
+
+import aiofiles
 from astrbot.api.event import filter, AstrMessageEvent, MessageChain
 from astrbot.api.star import Context, Star, register, StarTools
 from astrbot.api import logger
@@ -117,24 +119,25 @@ class AsmroneSub(Star):
                 async with session.get(url, headers=headers, timeout=30, proxy=self.proxy) as response:
                     if response.status == 200:
                         # Determine file extension from content type
-                        content_type = response.headers.get('content-type', '')
-                        if 'jpeg' in content_type or 'jpg' in content_type:
-                            file_extension = 'jpg'
-                        elif 'png' in content_type:
-                            file_extension = 'png'
-                        else:
-                            # Get extension from URL
-                            file_extension = url.split('.')[-1].split('?')[0]
-                            if file_extension not in ['jpg', 'jpeg', 'png']:
-                                file_extension = 'jpg'  # Default to jpg
+                        # content_type = response.headers.get('content-type', '')
+                        # if 'jpeg' in content_type or 'jpg' in content_type:
+                        #     file_extension = 'jpg'
+                        # elif 'png' in content_type:
+                        #     file_extension = 'png'
+                        # else:
+                        #     # Get extension from URL
+                        #     file_extension = url.split('.')[-1].split('?')[0]
+                        #     if file_extension not in ['jpg', 'jpeg', 'png']:
+                        #         file_extension = 'jpg'  # Default to jpg
                         
-                        file_path = self.temp_dir / f"{id}.{file_extension}"
+                        # file_path = self.temp_dir / f"{id}.{file_extension}"
+                        file_path = self.temp_dir / f"{id}.jpg"
                         
                         img_data = await response.read()
                         if modify_hash:
                             img_data = await _image_obfus(img_data)
-                        with open(file_path, 'wb') as f:
-                            f.write(img_data)
+                        async with aiofiles.open(file_path, 'wb') as f:
+                            await f.write(img_data)
                         
                         logger.info(f"下载图片 {id}: {file_path}")
                         return file_path
