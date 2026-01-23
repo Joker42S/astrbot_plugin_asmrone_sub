@@ -74,10 +74,10 @@ class AsmroneSub(Star):
                 await self.context.send_message(source, msg)
         for article in new_articles:
             title = article.get("title", "无标题")
-            url = article.get("url", "")
+            # url = article.get("url", "")
             desc = article.get("desc", "")
             cover = article.get("cover", "")
-            msg = MessageChain().message(f"【标题】：{title}\n{desc}\n【链接】：{url}\n")
+            msg = MessageChain().message(f"【标题】：{title}\n{desc}\n")
             img_file = await self._download_single_image(cover, article["id"])
             img_msg = MessageChain().file_image(str(img_file))
             for source in sources:
