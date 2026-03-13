@@ -17,7 +17,7 @@ class AsmroneClient:
         max_page: int = 2,
         retry: int = 3,
         retry_delay: float = 1.0,
-        search_tags: List[str] = [],
+        search_tags = None,
         proxy: str | None = None,
     ):
         """
@@ -35,8 +35,8 @@ class AsmroneClient:
         self.max_page = max_page
         self.retry = retry
         self.retry_delay = retry_delay
-        self.search_tags = search_tags
-        self.search_pattern = " ".join(search_tags)
+        self.search_tags = search_tags or []
+        self.search_pattern = " ".join(self.search_tags)
         self.proxy = proxy
 
     # -------------------- 工具区 --------------------
