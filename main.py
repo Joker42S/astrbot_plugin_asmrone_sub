@@ -29,22 +29,24 @@ class AsmroneSub(Star):
         if not self.temp_dir.exists():
             self.temp_dir.mkdir(parents=True, exist_ok=True)
         self.sub_sources_file : Path = self.base_dir / "sub_sources.json"
-        self.search_tags = self.config.get("search_tags", [])
-        self.search_tags = [s.replace('/', '%2F') for s in self.search_tags]
+        self.search_tags = self.config.get("search_tags", None)
         self.proxy = self.config.get("proxy", "")
         self.asmrone = AsmroneClient(
             base_url=self.base_url,
             api_url=self.api_url,
             max_page=max_page,
             latest_id_file=str(self.base_dir/"latest_id.txt"),
-            search_tags=self.search_tags,
+            search_tags=self.search_tags or [],
             proxy=self.proxy)
         self.sub_check_task = asyncio.create_task(self.start())
 
     async def start(self):
         while(True):
             await asyncio.sleep(self.check_interval * 60)
-            await self._refresh_sub()
+            try:
+                await self._refresh_sub()
+            except Exception as e:
+                logger.error(f"刷新订阅时发生错误: {e}")
 
     @filter.command("订阅ASMR")
     async def add_sub(self, event: AstrMessageEvent):
@@ -77,7 +79,8 @@ class AsmroneSub(Star):
             # url = article.get("url", "")
             desc = article.get("desc", "")
             cover = article.get("cover", "")
-            msg = MessageChain().message(f"【标题】：{title}\n{desc}\n")
+            source_id = article.get("source_id", "")
+            msg = MessageChain().message(f"【{source_id}】\n【标题】：{title}\n{desc}\n")
             img_file = await self._download_single_image(cover, article["id"])
             img_msg = MessageChain().file_image(str(img_file))
             for source in sources:

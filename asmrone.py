@@ -38,13 +38,6 @@ class AsmroneClient:
         self.search_tags = search_tags
         self.search_pattern = " ".join(search_tags)
         self.proxy = proxy
-        self.headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0 Safari/537.36"
-            )
-        }
 
     # -------------------- 工具区 --------------------
     def _load_latest_id(self) -> Optional[int]:
@@ -90,7 +83,7 @@ class AsmroneClient:
             retry_delay: 每次重试等待秒数
         """
 
-        encoded_pattern = quote(pattern)
+        encoded_pattern = quote(pattern, safe="")
 
         url = (
             f"{domain}/api/search/{encoded_pattern}"
@@ -111,20 +104,22 @@ class AsmroneClient:
                         return await resp.json()
 
             except Exception as e:
+                logger.error(f"请求失败 (尝试 {attempt}/{retries}): {e}")
                 if attempt >= retries:
                     raise  # 尝试次数已用完，抛出异常
                 
-                # 等待后重试
-                await asyncio.sleep(retry_delay)
+                # 等待后重试，指数退避
+                await asyncio.sleep(retry_delay * (2 ** (attempt - 1)))
     
     def _parse_work_data(self, data):
-        #解析单个作品的json数据，返回Dict{title: str, url: str, id: int, cover: str, desc: str}
+        #解析单个作品的json数据，返回Dict{title: str, url: str, id: int, source_id: str, cover: str, desc: str}
         res = {
             "title": data.get("title", "无标题"),
             "url": f"{self.base_url}/work/{data.get('id', 0)}",
             "id": data.get("id", 0),
+            "source_id": data.get("source_id", ""),
             "cover": data.get("mainCoverUrl", None),
-            "desc": f"社团：{data.get('name', '未知')}, CV: {' '.join(cv['name'] for cv in data.get('vas'))}"
+            "desc": f"社团：{data.get('name', '未知')}, CV: {' '.join(cv['name'] for cv in data.get('vas', []))}"
         }
         return res
 
@@ -135,45 +130,44 @@ class AsmroneClient:
         results = []
         new_id = 0
 
-        async with aiohttp.ClientSession() as session:
-            not_more_latest_work = False
-            for page_index in range(1, self.max_page + 1):
-                if not_more_latest_work:
+        not_more_latest_work = False
+        for page_index in range(1, self.max_page + 1):
+            if not_more_latest_work:
+                break
+            logger.info(f"\n获取第 {page_index} 页的音声：")
+            fetch_res = await self.search_asmr_async(page=page_index, pattern=self.search_pattern, domain=self.api_url, proxy=self.proxy)
+            if not fetch_res or not fetch_res.get("works", None):
+                logger.error("获取网站数据失败")
+                return results
+            works = fetch_res["works"]
+            if len(works) == 0:
+                if page_index == 1:
+                    logger.error("搜索结果为空，请检查搜索条件")
+                else:
+                    logger.info("当前页无更多搜索结果，停止")
+                break
+            
+            for art in works:
+                #parse data, id title url cover desc(vas name)
+                meta_data = self._parse_work_data(art)
+                id_val = meta_data["id"]
+                if new_id == 0:
+                    new_id = id_val
+                if id_val == latest_id:
+                    logger.info("已到达上次更新位置，停止")
+                    not_more_latest_work = True
                     break
-                logger.info(f"\n获取第 {page_index} 页的音声：")
-                fetch_res = await self.search_asmr_async(page=page_index, pattern=self.search_pattern, domain=self.api_url, proxy=self.proxy)
-                if not fetch_res or not fetch_res.get("works", None):
-                    logger.error("获取网站数据失败")
-                    return results
-                works = fetch_res["works"]
-                if len(works) == 0:
-                    if page_index == 1:
-                        logger.error("搜索结果为空，请检查搜索条件")
-                    else:
-                        logger.info("当前页无更多搜索结果，停止")
+                results.append(meta_data)
+                if latest_id == 0:
+                    logger.info(f"首次更新，推送最新一个作品的id并记录：{id_val}")
+                    latest_id = id_val
+                    not_more_latest_work = True
                     break
-                
-                for art in works:
-                    #parse data, id title url cover desc(vas name)
-                    meta_data = self._parse_work_data(art)
-                    id_val = meta_data["id"]
-                    if new_id == 0:
-                        new_id = id_val
-                    if id_val == latest_id:
-                        logger.info("已到达上次更新位置，停止")
-                        not_more_latest_work = True
-                        break
-                    results.append(meta_data)
-                    if latest_id == 0:
-                        logger.info(f"首次更新，推送最新一个作品的id并记录：{id_val}")
-                        latest_id = id_val
-                        not_more_latest_work = True
-                        break
-                    logger.info(f"发现新作品：{id_val}")
+                logger.info(f"发现新作品：{id_val}")
 
-                await asyncio.sleep(3)
+            await asyncio.sleep(3)
 
-            if new_id != 0:
-                self._save_latest_id(new_id)
+        if new_id != 0:
+            self._save_latest_id(new_id)
 
         return results
