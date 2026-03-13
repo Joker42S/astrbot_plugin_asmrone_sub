@@ -1,4 +1,4 @@
-name: asmrone_sub # 插件的唯一识别名
+name: astrbot_plugin_asmrone_sub # 插件的唯一识别名
 desc: 推送ASMRONE的更新到群聊 # 插件简短描述
 version: v1.0.0 # 插件版本号
 author: Joker42S # 作者

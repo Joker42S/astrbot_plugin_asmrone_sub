@@ -19,7 +19,7 @@ class AsmroneSub(Star):
         self.context = context
     
     async def initialize(self):
-        self.plugin_name = 'asmrone_sub'
+        self.plugin_name = 'astrbot_plugin_asmrone_sub'
         self.check_interval = self.config.get("check_interval", 360)
         max_page = self.config.get("max_page", 2)
         self.base_url = self.config.get("base_url", "https://asmr-200.com")
