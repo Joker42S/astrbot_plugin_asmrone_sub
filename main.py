@@ -17,6 +17,7 @@ class AsmroneSub(Star):
         super().__init__(context)
         self.config = config
         self.context = context
+        self.sub_check_task = None
     
     async def initialize(self):
         self.plugin_name = 'astrbot_plugin_asmrone_sub'
@@ -74,22 +75,26 @@ class AsmroneSub(Star):
             msg = MessageChain().message(f"ASMR.one更新了{len(new_articles)}个新作品。\n")
             for source in sources:
                 await self.context.send_message(source, msg)
-        for article in new_articles:
-            title = article.get("title", "无标题")
-            # url = article.get("url", "")
-            desc = article.get("desc", "")
-            cover = article.get("cover", "")
-            source_id = article.get("source_id", "")
-            msg = MessageChain().message(f"【{source_id}】\n【标题】：{title}\n{desc}\n")
-            img_file = await self._download_single_image(cover, article["id"])
-            img_msg = MessageChain().file_image(str(img_file))
-            for source in sources:
-                try:
-                    await self.context.send_message(source, msg)
-                    await self.context.send_message(source, img_msg)
-                except Exception as e:
-                    logger.error(f"发送消息到{source}时失败：{e}")
-
+        async with aiohttp.ClientSession() as session:
+            for article in new_articles:
+                title = article.get("title", "无标题")
+                # url = article.get("url", "")
+                desc = article.get("desc", "")
+                cover = article.get("cover", "")
+                source_id = article.get("source_id", "")
+                msg = MessageChain().message(f"【{source_id}】\n【标题】：{title}\n{desc}\n")
+                img_file = await self._download_single_image(cover, article["id"], session)
+                if img_file is None:
+                    img_msg = MessageChain().message("封面图片下载失败")
+                else:
+                    img_msg = MessageChain().file_image(str(img_file))
+                for source in sources:
+                    try:
+                        await self.context.send_message(source, msg)
+                        await self.context.send_message(source, img_msg)
+                    except Exception as e:
+                        logger.error(f"发送消息到{source}时失败：{e}")
+        
     def _load_sub_sources(self):
         if not Path.exists(self.sub_sources_file):
             return []
@@ -100,7 +105,7 @@ class AsmroneSub(Star):
         with open(str(self.sub_sources_file), "w", encoding="utf-8") as f:
             json.dump(sources, f, ensure_ascii=False, indent=4)
 
-    async def _download_single_image(self, url: str, id: int, modify_hash = True) -> Path:
+    async def _download_single_image(self, url: str, id: int, session = None, modify_hash = True) -> Path | None:
         """下载单张图片"""
         for file_extension in ['jpg', 'png', 'jpeg']:
             file_path = self.temp_dir / f"{id}.{file_extension}"
@@ -116,37 +121,37 @@ class AsmroneSub(Star):
                     "Chrome/120.0 Safari/537.36"
                 )
             }
-            
+            if not session:
+                raise ValueError("无法建立连接，session未提供")
             # 下载图片
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=30, proxy=self.proxy) as response:
-                    if response.status == 200:
-                        # Determine file extension from content type
-                        # content_type = response.headers.get('content-type', '')
-                        # if 'jpeg' in content_type or 'jpg' in content_type:
-                        #     file_extension = 'jpg'
-                        # elif 'png' in content_type:
-                        #     file_extension = 'png'
-                        # else:
-                        #     # Get extension from URL
-                        #     file_extension = url.split('.')[-1].split('?')[0]
-                        #     if file_extension not in ['jpg', 'jpeg', 'png']:
-                        #         file_extension = 'jpg'  # Default to jpg
-                        
-                        # file_path = self.temp_dir / f"{id}.{file_extension}"
-                        file_path = self.temp_dir / f"{id}.jpg"
-                        
-                        img_data = await response.read()
-                        if modify_hash:
-                            img_data = await _image_obfus(img_data)
-                        async with aiofiles.open(file_path, 'wb') as f:
-                            await f.write(img_data)
-                        
-                        logger.info(f"下载图片 {id}: {file_path}")
-                        return file_path
-                    else:
-                        logger.error(f"下载图片失败，状态码: {response.status}")
-                        return None
+            async with session.get(url, headers=headers, timeout=30, proxy=self.proxy) as response:
+                if response.status == 200:
+                    # Determine file extension from content type
+                    # content_type = response.headers.get('content-type', '')
+                    # if 'jpeg' in content_type or 'jpg' in content_type:
+                    #     file_extension = 'jpg'
+                    # elif 'png' in content_type:
+                    #     file_extension = 'png'
+                    # else:
+                    #     # Get extension from URL
+                    #     file_extension = url.split('.')[-1].split('?')[0]
+                    #     if file_extension not in ['jpg', 'jpeg', 'png']:
+                    #         file_extension = 'jpg'  # Default to jpg
+                    
+                    # file_path = self.temp_dir / f"{id}.{file_extension}"
+                    file_path = self.temp_dir / f"{id}.jpg"
+                    
+                    img_data = await response.read()
+                    if modify_hash:
+                        img_data = await _image_obfus(img_data)
+                    async with aiofiles.open(file_path, 'wb') as f:
+                        await f.write(img_data)
+                    
+                    logger.info(f"下载图片 {id}: {file_path}")
+                    return file_path
+                else:
+                    logger.error(f"下载图片失败，状态码: {response.status}")
+                    return None
             
         except Exception as e:
             logger.error(f"下载封面图片失败: {e}")
